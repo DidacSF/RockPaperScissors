@@ -30,6 +30,7 @@ sp-runtime = { default-features = false, version = "5.0.0", git = "https://githu
 default = ["std"]
 std = [
 	"codec/std",
+	"sp-std/std",
 	"sp-io/std",
 	"scale-info/std",
 	"frame-support/std",

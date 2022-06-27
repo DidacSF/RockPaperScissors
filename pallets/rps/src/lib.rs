@@ -228,6 +228,12 @@ pub mod pallet {
 		InvalidHandHash,
 	}
 
+	impl<T> From<DispatchError> for Error<T> {
+		fn from(_: DispatchError) -> Self {
+			Self::InvalidState
+		}
+	}
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(10_000)]
@@ -247,14 +253,14 @@ pub mod pallet {
 
 			Self::deposit_event(Event::ChallengeCreated(challenge_id, challenger, bet_amount));
 
-			Ok(().into())
+			Ok(())
 		}
 
 		#[pallet::weight(10_000)]
 		pub fn enter_challenge(origin: OriginFor<T>, challenge_id: ChallengeId) -> DispatchResult {
 			let rival = ensure_signed(origin)?;
 
-			if let Err(e) = ChallengeStore::<T>::try_mutate(&challenge_id, |challenge_entry| {
+			Ok(ChallengeStore::<T>::try_mutate(&challenge_id, |challenge_entry| {
 				ensure!(challenge_entry.is_some(), Error::<T>::ChallengeNotFound);
 
 				let challenge_state = challenge_entry.as_mut().unwrap();
@@ -273,11 +279,7 @@ pub mod pallet {
 				} else {
 					Err(Error::<T>::ChallengeNotOpen)
 				}
-			}) {
-				Err(e.into())
-			} else {
-				Ok(().into())
-			}
+			})?)
 		}
 
 		// play
@@ -293,34 +295,33 @@ pub mod pallet {
 		) -> DispatchResult {
 			let player = ensure_signed(origin)?;
 
-			if let Some(challenge) = ChallengeStore::<T>::get(&challenge_id) {
-				if let ChallengeState::Accepted(ref challenge_state) = challenge {
-					ensure!(
-						challenge_state.contains_player(&player),
-						Error::<T>::CannotPlayInNonParticipatingChallenge
-					);
+			let challenge =
+				ChallengeStore::<T>::get(&challenge_id).ok_or(Error::<T>::ChallengeNotFound)?;
 
-					ensure!(
-						!ChallengePlaysStore::<T>::contains_key(&challenge_id, &player),
-						Error::<T>::CannotPlayInNonParticipatingChallenge
-					);
+			if let ChallengeState::Accepted(ref challenge_state) = challenge {
+				ensure!(
+					challenge_state.contains_player(&player),
+					Error::<T>::CannotPlayInNonParticipatingChallenge
+				);
 
-					T::Currency::reserve(&player, challenge_state.bet_amount)?;
+				ensure!(
+					!ChallengePlaysStore::<T>::contains_key(&challenge_id, &player),
+					Error::<T>::CannotPlayInNonParticipatingChallenge
+				);
 
-					let play_hash = challenge_play.generate_hash(challenger_secret);
-					ChallengePlaysStore::<T>::insert(&challenge_id, &player, play_hash);
-					Self::deposit_event(Event::PlayedInChallenge(challenge_id, player));
+				T::Currency::reserve(&player, challenge_state.bet_amount)?;
 
-					if ChallengePlaysStore::<T>::iter_key_prefix(&challenge_id).count() == 2 {
-						Self::deposit_event(Event::ChallengeReadyForReveal(challenge_id));
-					}
+				let play_hash = challenge_play.generate_hash(challenger_secret);
+				ChallengePlaysStore::<T>::insert(&challenge_id, &player, play_hash);
+				Self::deposit_event(Event::PlayedInChallenge(challenge_id, player));
 
-					Ok(())
-				} else {
-					Err(Error::<T>::ChallengeStateForbidsPlay.into())
+				if ChallengePlaysStore::<T>::iter_key_prefix(&challenge_id).count() == 2 {
+					Self::deposit_event(Event::ChallengeReadyForReveal(challenge_id));
 				}
+
+				Ok(())
 			} else {
-				Err(Error::<T>::ChallengeNotFound.into())
+				Err(Error::<T>::ChallengeStateForbidsPlay.into())
 			}
 		}
 
@@ -338,7 +339,7 @@ pub mod pallet {
 		) -> DispatchResult {
 			let player = ensure_signed(origin)?;
 
-			if let Err(e) = ChallengeStore::<T>::try_mutate(&challenge_id, |challenge_entry| {
+			Ok(ChallengeStore::<T>::try_mutate(&challenge_id, |challenge_entry| {
 				if let Some(challenge) = challenge_entry {
 					if let ChallengeState::Accepted(ref challenge_state) = challenge {
 						ensure!(
@@ -409,16 +410,12 @@ pub mod pallet {
 							Ok(())
 						}
 					} else {
-						Err(Error::<T>::ChallengeStateForbidsPlay.into())
+						Err(Error::<T>::ChallengeStateForbidsPlay)
 					}
 				} else {
-					Err(Error::<T>::ChallengeNotFound.into())
+					Err(Error::<T>::ChallengeNotFound)
 				}
-			}) {
-				Err(e)
-			} else {
-				Ok(().into())
-			}
+			})?)
 		}
 	}
 
