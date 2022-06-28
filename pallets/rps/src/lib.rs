@@ -83,7 +83,7 @@ pub enum ChallengeState<AccountId: PartialEq + Clone, Balance> {
 	Finished(FinishedChallenge<AccountId, Balance>),
 }
 
-#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Copy, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum ChallengePlay {
 	Rock,
 	Paper,
@@ -306,7 +306,7 @@ pub mod pallet {
 
 				ensure!(
 					!ChallengePlaysStore::<T>::contains_key(&challenge_id, &player),
-					Error::<T>::CannotPlayInNonParticipatingChallenge
+					Error::<T>::ChallengeAlreadyPlayed
 				);
 
 				T::Currency::reserve(&player, challenge_state.bet_amount)?;

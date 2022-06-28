@@ -1,10 +1,13 @@
-use frame_support::traits::{ConstU16, ConstU64};
 use crate as pallet_rps;
+
+use core::default::Default;
+use frame_support::traits::{ConstU16, ConstU64};
 use frame_system as system;
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
+	BuildStorage,
 };
 
 type UncheckedExtrinsic = frame_system::mocking::MockUncheckedExtrinsic<Test>;
@@ -73,8 +76,20 @@ impl pallet_rps::Config for Test {
 	type MinBetAmount = MinBetAmount;
 }
 
-pub fn new_test_ext() -> sp_io::TestExternalities {
-	system::GenesisConfig::default().build_storage::<Test>().unwrap().into()
+/// Build genesis storage according to the mock runtime.
+pub(crate) fn new_test_ext(
+	endowed_accounts: &[u64],
+	endowment_amount: u64,
+) -> sp_io::TestExternalities {
+	let genesis = GenesisConfig {
+		system: Default::default(),
+		balances: BalancesConfig {
+			balances: endowed_accounts.iter().cloned().map(|k| (k, endowment_amount)).collect(),
+		},
+	}
+	.build_storage()
+	.unwrap();
+	genesis.into()
 }
 
 pub fn last_event() -> Event {
