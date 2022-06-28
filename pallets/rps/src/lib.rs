@@ -17,13 +17,13 @@ pub type ChallengeId = u64;
 
 pub type ChallengePlayHash = [u8; 8];
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct OpenChallenge<AccountId: PartialEq + Clone, Balance> {
 	challenger: AccountId,
 	bet_amount: Balance,
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct AcceptedChallenge<AccountId: PartialEq + Clone, Balance> {
 	challenger: AccountId,
 	rival: AccountId,
@@ -54,7 +54,7 @@ impl<AccountId: PartialEq + Clone, Balance> AcceptedChallenge<AccountId, Balance
 	}
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct FinishedChallenge<AccountId: PartialEq + Clone, Balance> {
 	challenger: AccountId,
 	rival: AccountId,
@@ -76,7 +76,7 @@ impl<AccountId: PartialEq + Clone, Balance> FinishedChallenge<AccountId, Balance
 	}
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum ChallengeState<AccountId: PartialEq + Clone, Balance> {
 	Open(OpenChallenge<AccountId, Balance>),
 	Accepted(AcceptedChallenge<AccountId, Balance>),
