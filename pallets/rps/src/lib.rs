@@ -344,7 +344,7 @@ pub mod pallet {
 					if let ChallengeState::Accepted(ref challenge_state) = challenge {
 						ensure!(
 							challenge_state.contains_player(&player),
-							Error::<T>::CannotPlayInNonParticipatingChallenge
+							Error::<T>::CannotRevealNonParticipatingChallenge
 						);
 
 						let player_hand_hash = Self::get_player_hand_hash(
