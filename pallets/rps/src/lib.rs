@@ -197,8 +197,8 @@ pub mod pallet {
 		PlayedInChallenge(ChallengeId, T::AccountId),
 		/// Triggered when both players have sent their play on a given challenge. [challenge_id]
 		ChallengeReadyForReveal(ChallengeId),
-		/// Triggered when a challenge has been finished. [winner_id]
-		ChallengeFinished(Option<T::AccountId>),
+		/// Triggered when a challenge has been finished. [challenge_id, winner_id]
+		ChallengeFinished(ChallengeId, Option<T::AccountId>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -379,7 +379,7 @@ pub mod pallet {
 						if let Some((winner, loser)) = challenge_results {
 							T::Currency::repatriate_reserved(
 								loser,
-								&winner,
+								winner,
 								challenge_state.bet_amount,
 								BalanceStatus::Reserved,
 							)?;
@@ -394,7 +394,10 @@ pub mod pallet {
 									Some(winner.clone()),
 								)));
 
-							Self::deposit_event(Event::ChallengeFinished(Some(winner.clone())));
+							Self::deposit_event(Event::ChallengeFinished(
+								challenge_id,
+								Some(winner.clone()),
+							));
 
 							Ok(())
 						} else {
@@ -405,7 +408,7 @@ pub mod pallet {
 								FinishedChallenge::from_accepted(challenge_state.clone(), None),
 							));
 
-							Self::deposit_event(Event::ChallengeFinished(None));
+							Self::deposit_event(Event::ChallengeFinished(challenge_id, None));
 
 							Ok(())
 						}

@@ -81,17 +81,26 @@ pub(crate) fn new_test_ext(
 	endowed_accounts: &[u64],
 	endowment_amount: u64,
 ) -> sp_io::TestExternalities {
-	let genesis = GenesisConfig {
+	let mut ext: sp_io::TestExternalities = GenesisConfig {
 		system: Default::default(),
+		//system: frame_system::GenesisConfig::default(),
 		balances: BalancesConfig {
 			balances: endowed_accounts.iter().cloned().map(|k| (k, endowment_amount)).collect(),
 		},
 	}
 	.build_storage()
-	.unwrap();
-	genesis.into()
+	.unwrap()
+	.into();
+	ext.execute_with(|| System::set_block_number(1));
+	ext
 }
 
 pub fn last_event() -> Event {
-	frame_system::Pallet::<Test>::events().pop().expect("Event expected").event
+	let mut events = frame_system::Pallet::<Test>::events();
+	events.pop().expect("Event expected").event
+}
+
+pub fn last_two_events() -> (Event, Event) {
+	let mut events = frame_system::Pallet::<Test>::events();
+	(events.pop().expect("Event expected").event, events.pop().expect("Event expected").event)
 }

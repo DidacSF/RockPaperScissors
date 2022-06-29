@@ -19,9 +19,18 @@ const BET_AMOUNT: u64 = 1_000;
 fn create_challenge(challenger: MockAccountId) -> u64 {
 	assert_ok!(RpsModule::create_challenge(Origin::signed(challenger), BET_AMOUNT), ());
 
-	let challenge = ChallengeState::Open(OpenChallenge { challenger, bet_amount: BET_AMOUNT });
-
 	let challenge_id = RpsModule::next_challenge_id() - 1;
+
+	assert_eq!(
+		last_event(),
+		mock::Event::RpsModule(crate::Event::ChallengeCreated(
+			challenge_id,
+			challenger,
+			BET_AMOUNT
+		)),
+	);
+
+	let challenge = ChallengeState::Open(OpenChallenge { challenger, bet_amount: BET_AMOUNT });
 
 	assert_eq!(RpsModule::challenge_store(challenge_id), Some(challenge));
 
@@ -32,6 +41,11 @@ fn create_accepted_challenge(challenger: MockAccountId, rival: MockAccountId) ->
 	let challenge_id = create_challenge(challenger);
 
 	assert_ok!(RpsModule::enter_challenge(Origin::signed(rival), challenge_id), ());
+
+	assert_eq!(
+		last_event(),
+		mock::Event::RpsModule(crate::Event::EnteredChallenge(challenge_id, rival)),
+	);
 
 	let challenge =
 		ChallengeState::Accepted(AcceptedChallenge { challenger, bet_amount: 1000, rival });
@@ -61,11 +75,10 @@ fn create_played_challenge(
 		()
 	);
 
-	// TODO: Investigate how to check events
-	/*assert_eq!(
+	assert_eq!(
 		last_event(),
-		mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-	);*/
+		mock::Event::RpsModule(crate::Event::PlayedInChallenge(challenge_id, challenger)),
+	);
 
 	assert_eq!(RpsModule::challenge_plays_store(challenge_id, challenger), Some(challenger_hash));
 
@@ -91,17 +104,17 @@ fn create_played_challenge(
 		()
 	);
 
-	// TODO: Investigate how to check events
-	/*assert_eq!(
-		last_event(),
-		mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-	);*/
+	let (event_1, event_2) = last_two_events();
 
-	// TODO: Investigate how to check events
-	/*assert_eq!(
-		last_event(),
-		mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-	);*/
+	assert_eq!(
+		event_1,
+		mock::Event::RpsModule(crate::Event::ChallengeReadyForReveal(challenge_id)),
+	);
+
+	assert_eq!(
+		event_2,
+		mock::Event::RpsModule(crate::Event::PlayedInChallenge(challenge_id, rival)),
+	);
 
 	assert_eq!(RpsModule::challenge_plays_store(challenge_id, rival), Some(rival_hash));
 	assert_eq!(System::account(rival), account_state_after_play);
@@ -122,11 +135,16 @@ mod create_challenge {
 				RpsModule::create_challenge(Origin::signed(challenge_creator), BET_AMOUNT),
 				()
 			);
-			// TODO: Investigate how to check events
-			/*assert_eq!(
+
+			assert_eq!(
 				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+				mock::Event::RpsModule(crate::Event::ChallengeCreated(
+					0_u64,
+					challenge_creator,
+					BET_AMOUNT
+				)),
+			);
+
 			assert_eq!(RpsModule::next_challenge_id(), 1_u64);
 
 			let challenge =
@@ -166,11 +184,10 @@ mod enter_challenge {
 
 			assert_ok!(RpsModule::enter_challenge(Origin::signed(BOB), challenge_id), ());
 
-			// TODO: Investigate how to check events
-			/*assert_eq!(
+			assert_eq!(
 				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+				mock::Event::RpsModule(crate::Event::EnteredChallenge(challenge_id, BOB)),
+			);
 
 			let challenge = ChallengeState::Accepted(AcceptedChallenge {
 				challenger: ALICE,
@@ -254,11 +271,10 @@ mod play_challenge {
 				()
 			);
 
-			// TODO: Investigate how to check events
-			/*assert_eq!(
+			assert_eq!(
 				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+				mock::Event::RpsModule(crate::Event::PlayedInChallenge(challenge_id, challenger)),
+			);
 
 			assert_eq!(
 				RpsModule::challenge_plays_store(challenge_id, challenger),
@@ -294,17 +310,17 @@ mod play_challenge {
 				()
 			);
 
-			// TODO: Investigate how to check events
-			/*assert_eq!(
-				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+			let (event_1, event_2) = last_two_events();
 
-			// TODO: Investigate how to check events
-			/*assert_eq!(
-				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+			assert_eq!(
+				event_1,
+				mock::Event::RpsModule(crate::Event::ChallengeReadyForReveal(challenge_id)),
+			);
+
+			assert_eq!(
+				event_2,
+				mock::Event::RpsModule(crate::Event::PlayedInChallenge(challenge_id, rival)),
+			);
 
 			assert_eq!(RpsModule::challenge_plays_store(challenge_id, rival), Some(rival_hash));
 			assert_eq!(System::account(rival), account_state_after_play);
@@ -430,11 +446,10 @@ mod resolve_challenge {
 				()
 			);
 
-			// TODO: Investigate how to check events
-			/*assert_eq!(
+			assert_eq!(
 				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+				mock::Event::RpsModule(crate::Event::ChallengeFinished(challenge_id, Some(rival))),
+			);
 
 			let challenge = ChallengeState::Finished(FinishedChallenge {
 				challenger,
@@ -501,11 +516,10 @@ mod resolve_challenge {
 				()
 			);
 
-			// TODO: Investigate how to check events
-			/*assert_eq!(
+			assert_eq!(
 				last_event(),
-				mock::Event::RpsModule(crate::Event::ChallengeCreated(1_u64, challenge_creator, bet_amount)),
-			);*/
+				mock::Event::RpsModule(crate::Event::ChallengeFinished(challenge_id, None)),
+			);
 
 			let challenge = ChallengeState::Finished(FinishedChallenge {
 				challenger,
