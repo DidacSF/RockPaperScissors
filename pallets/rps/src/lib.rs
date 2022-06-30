@@ -17,13 +17,13 @@ pub type ChallengeId = u64;
 
 pub type ChallengePlayHash = [u8; 8];
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct OpenChallenge<AccountId: PartialEq + Clone, Balance> {
 	challenger: AccountId,
 	bet_amount: Balance,
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct AcceptedChallenge<AccountId: PartialEq + Clone, Balance> {
 	challenger: AccountId,
 	rival: AccountId,
@@ -54,7 +54,7 @@ impl<AccountId: PartialEq + Clone, Balance> AcceptedChallenge<AccountId, Balance
 	}
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub struct FinishedChallenge<AccountId: PartialEq + Clone, Balance> {
 	challenger: AccountId,
 	rival: AccountId,
@@ -76,14 +76,14 @@ impl<AccountId: PartialEq + Clone, Balance> FinishedChallenge<AccountId, Balance
 	}
 }
 
-#[derive(Clone, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum ChallengeState<AccountId: PartialEq + Clone, Balance> {
 	Open(OpenChallenge<AccountId, Balance>),
 	Accepted(AcceptedChallenge<AccountId, Balance>),
 	Finished(FinishedChallenge<AccountId, Balance>),
 }
 
-#[derive(Debug, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
+#[derive(Debug, Copy, Clone, PartialEq, Encode, Decode, TypeInfo, MaxEncodedLen)]
 pub enum ChallengePlay {
 	Rock,
 	Paper,
@@ -197,8 +197,8 @@ pub mod pallet {
 		PlayedInChallenge(ChallengeId, T::AccountId),
 		/// Triggered when both players have sent their play on a given challenge. [challenge_id]
 		ChallengeReadyForReveal(ChallengeId),
-		/// Triggered when a challenge has been finished. [winner_id]
-		ChallengeFinished(Option<T::AccountId>),
+		/// Triggered when a challenge has been finished. [challenge_id, winner_id]
+		ChallengeFinished(ChallengeId, Option<T::AccountId>),
 	}
 
 	// Errors inform users that something went wrong.
@@ -306,7 +306,7 @@ pub mod pallet {
 
 				ensure!(
 					!ChallengePlaysStore::<T>::contains_key(&challenge_id, &player),
-					Error::<T>::CannotPlayInNonParticipatingChallenge
+					Error::<T>::ChallengeAlreadyPlayed
 				);
 
 				T::Currency::reserve(&player, challenge_state.bet_amount)?;
@@ -344,7 +344,7 @@ pub mod pallet {
 					if let ChallengeState::Accepted(ref challenge_state) = challenge {
 						ensure!(
 							challenge_state.contains_player(&player),
-							Error::<T>::CannotPlayInNonParticipatingChallenge
+							Error::<T>::CannotRevealNonParticipatingChallenge
 						);
 
 						let player_hand_hash = Self::get_player_hand_hash(
@@ -379,7 +379,7 @@ pub mod pallet {
 						if let Some((winner, loser)) = challenge_results {
 							T::Currency::repatriate_reserved(
 								loser,
-								&winner,
+								winner,
 								challenge_state.bet_amount,
 								BalanceStatus::Reserved,
 							)?;
@@ -394,7 +394,10 @@ pub mod pallet {
 									Some(winner.clone()),
 								)));
 
-							Self::deposit_event(Event::ChallengeFinished(Some(winner.clone())));
+							Self::deposit_event(Event::ChallengeFinished(
+								challenge_id,
+								Some(winner.clone()),
+							));
 
 							Ok(())
 						} else {
@@ -405,7 +408,7 @@ pub mod pallet {
 								FinishedChallenge::from_accepted(challenge_state.clone(), None),
 							));
 
-							Self::deposit_event(Event::ChallengeFinished(None));
+							Self::deposit_event(Event::ChallengeFinished(challenge_id, None));
 
 							Ok(())
 						}
